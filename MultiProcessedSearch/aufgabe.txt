@@ -1,0 +1,5 @@
+textdatei mit vielen zeichen
+lesen und in 5 teile aufteilen
+
+jeden teil in einem prozess nach spezifizierten wort durchsuchen
+
