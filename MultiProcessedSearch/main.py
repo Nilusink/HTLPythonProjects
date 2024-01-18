@@ -193,6 +193,14 @@ class FastFinder:
         # start processes
         processes: list[Future] = []
         with ProcessPoolExecutor(max_workers=self.n_processes) as pool:
+            bar = ShadyBar(
+                "Starting ",
+                max=n_processes,
+                width=100,
+                suffix='%(index)d/%(max)d - eta: %(eta)ds'
+            )
+            bar.start()
+            bar.next()
             process_end = 0
             for i_process in range(n_processes - 1):
                 sleep(0)  # for some reason the program won't work without this
@@ -210,6 +218,9 @@ class FastFinder:
                     term,
                     n_padding,
                 ))
+                bar.next()
+
+            bar.finish()
 
             # start last process (to end)
             processes.append(pool.submit(
