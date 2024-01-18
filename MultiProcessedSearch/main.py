@@ -82,6 +82,10 @@ class PartialOccurrence(Occurrence):
         )
 
 
+def call_with_extend(args):
+    return args[0](*args[1:])
+
+
 # main class
 class FastFinder:
     def __init__(
@@ -193,24 +197,32 @@ class FastFinder:
         # start processes
         processes: list[Future] = []
         with ProcessPoolExecutor(max_workers=self.n_processes) as pool:
+            if n_processes > 100:
+                bar_size = n_processes
+                bar_hops = 1
+
+                while bar_size > 1000:
+                    bar_size /= 100
+                    bar_hops *= 100
+
+                bar_size = int(bar_size)
             bar = ShadyBar(
                 "Starting ",
-                max=n_processes,
+                max=bar_size,
                 width=100,
-                suffix='%(index)d/%(max)d - eta: %(eta)ds'
+                suffix='%(percent)d%% - eta: %(eta)ds'
             )
             bar.start()
             bar.next()
             process_end = 0
+            process_parts = []
             for i_process in range(n_processes - 1):
-                sleep(0)  # for some reason the program won't work without this
-
                 # calculate section range
                 process_start = i_process * self.max_size_per_process
                 process_end = (i_process + 1) * self.max_size_per_process
 
                 # start process
-                processes.append(pool.submit(
+                process_parts.append((
                     self._find_section,
                     self._file_path,
                     process_start,
@@ -218,12 +230,15 @@ class FastFinder:
                     term,
                     n_padding,
                 ))
-                bar.next()
 
+                if i_process % bar_hops == 0:
+                    bar.next()
             bar.finish()
 
+
+
             # start last process (to end)
-            processes.append(pool.submit(
+            process_parts.append((
                 self._find_section,
                 self._file_path,
                 process_end,
@@ -235,17 +250,17 @@ class FastFinder:
             # wait for processes to finish and show progress bar
             bar = ShadyBar(
                 'Searching',
-                max=n_processes,
+                max=bar_size,
                 width=100,
-                suffix='%(index)d/%(max)d - eta: %(eta)ds'
+                suffix='%(percent)d%% - eta: %(eta)ds'
             )
             bar.start()
 
+            i_result = 0
             results: list[Occurrence] = []
             partial_results_end: list[PartialOccurrence] = []
             partial_results_start: list[PartialOccurrence] = []
-            for process in processes:
-                matches, partial_matches = process.result()
+            for matches, partial_matches in pool.map(call_with_extend, process_parts):
                 results.extend(matches)
 
                 # append partial matches to the correct list
@@ -258,7 +273,10 @@ class FastFinder:
                     partial_results_start.append(match)
 
                 # iterate progress bar
-                bar.next()
+                if i_result % bar_hops == 0:
+                    bar.next()
+
+                i_result += 1
 
             bar.finish()
 
