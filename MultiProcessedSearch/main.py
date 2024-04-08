@@ -9,9 +9,9 @@ Author:
 Nilusink
 """
 from concurrent.futures import ProcessPoolExecutor, Future
-from time import perf_counter, sleep
 from progress.bar import ShadyBar
 from dataclasses import dataclass
+from time import perf_counter
 import sys
 import os
 
@@ -313,7 +313,7 @@ def main() -> None:
     ff = FastFinder(
         sys.argv[2],
         n_processes=-1,
-        max_size_per_process=1024**2
+        max_size_per_process=5_000_000
     )
     ff.find(sys.argv[1])
 
